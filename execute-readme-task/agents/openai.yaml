@@ -1,0 +1,4 @@
+interface:
+  display_name: "README Task Executor"
+  short_description: "从 README 提取需求、分步实现并以证据验收复杂任务"
+  default_prompt: "Use $execute-readme-task to inspect this repository README, plan the work, implement it in small verified steps, and report acceptance evidence."
