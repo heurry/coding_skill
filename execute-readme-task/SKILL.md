@@ -1,181 +1,236 @@
 ---
 name: execute-readme-task
-description: Convert a repository README and the user's request into a requirements matrix, a dependency-aware implementation plan, small verified changes, and an evidence-based completion report. Use when asked to understand a README-driven project, finish a multi-step repository task, implement several related requirements, or continue work whose scope and acceptance criteria are primarily documented in README.md.
+description: 读取仓库 README、用户要求和现有代码，生成包含需求矩阵、代码调用链、接口与数据流、边界情况、文件与符号级改动、测试用例和验收证据的详细实施计划，并按依赖顺序逐步实现和验证。当用户要求根据 README 理解项目、规划复杂任务、完成多步功能、修复跨模块问题，或要求先制定可执行的详细方案时使用。
 ---
 
-# Execute README Task
+# 根据 README 规划并执行综合任务
 
-Use a low-freedom workflow so that every conclusion, change, and completion claim is traceable to repository evidence.
+使用低自由度流程。将用户请求视为当前目标，将 README 视为需求来源，将仓库代码视为当前事实。让每个计划细节都能追溯到代码证据，让每个完成声明都能追溯到实际验证结果。
 
-## Apply the operating rules
+## 遵守核心规则
 
-1. Treat the current user request as the goal, the README as requirements, and the repository as implementation truth.
-2. Obey higher-priority instructions and every applicable repository instruction file.
-3. Read before editing. Search for existing implementations before creating new ones.
-4. Make the smallest coherent change that satisfies the current requirement.
-5. Preserve unrelated user changes. Never include them in a commit or rewrite them.
-6. Separate facts, inferences, and unknowns. Never present an inference as a README requirement.
-7. Require executed verification evidence before marking any item complete.
-8. Perform one bounded implementation step at a time. Verify it before starting the next step.
+1. 先读取、搜索和定位，再规划，最后修改。
+2. 将事实、推断、假设和未知项分开记录。
+3. 不得用“修改相关逻辑”“完善测试”“处理异常”等空泛表述代替实施细节。
+4. 不得虚构未在仓库中找到的文件、类、函数、字段、命令或依赖。
+5. 每个步骤只实现一个可独立验证的结果，验证通过后才进入下一步。
+6. 优先复用现有抽象和模式，执行满足需求的最小完整改动，不进行无关重构。
+7. 保留与任务无关的用户修改，不覆盖、删除或纳入本次提交。
+8. 未执行的检查不得写为通过；没有验证证据不得声明完成。
 
-## Maintain task state
+## 维护任务状态
 
-Use a plan tool when available. Otherwise maintain an internal checklist with exactly one item marked `in_progress`.
+在可用时使用计划工具，始终只保留一个 `in_progress` 步骤。否则在上下文中维护同等检查表。
 
-Track these states:
+- `DISCOVER`：读取指令、README、仓库结构和相关实现。
+- `MODEL`：建立需求、架构、调用链和数据流模型。
+- `PLAN`：生成文件与符号级实施计划并通过计划门禁。
+- `EXECUTE`：只实现当前的原子步骤。
+- `VERIFY`：先局部验证，再执行影响范围内的回归验证。
+- `DONE`：所有必须需求都有实现位置和验证证据。
+- `BLOCKED`：缺少必要信息、权限、凭据或环境能力。
 
-- `DISCOVER`: read instructions, README, repository structure, and current state.
-- `PLAN`: build the requirements matrix and ordered implementation steps.
-- `EXECUTE`: implement one bounded step.
-- `VERIFY`: run the narrow check, then the broader checks.
-- `DONE`: every required item has evidence.
-- `BLOCKED`: required information, authority, credentials, or environment capability is unavailable.
+对多文件、多模块或多需求任务，不得从 `DISCOVER` 直接进入 `EXECUTE`。用户只要求方案或计划时，在计划通过门禁后停止，不修改代码。
 
-Never move directly from `DISCOVER` to `EXECUTE` for a multi-file or multi-requirement task.
+## 阶段一：完成仓库发现
 
-## Phase 1: Discover
+在编辑前完成以下操作：
 
-Before editing:
+1. 完整读取用户请求和 README，不只读标题或摘要。
+2. 查找并读取适用的 `AGENTS.md` 等仓库指令。
+3. 检查仓库状态，记录用户已有的修改和未跟踪文件。
+4. 识别语言、框架、依赖清单、构建系统、入口、配置、测试结构和运行方式。
+5. 对 README 中每个功能名、命令、接口、数据类型和错误行为进行搜索。
+6. 阅读命中的定义、调用者、被调用者、测试和配置，不要只看一个文件。
+7. 在需要理解当前失败时，先执行成本合理的基线测试并记录结果。
 
-1. Read the user request and the complete README.
-2. Locate and read applicable instruction files such as `AGENTS.md`.
-3. Inspect the repository status without modifying it.
-4. Identify manifests, build files, test configuration, entry points, and relevant source files.
-5. Search for implementations related to every named feature, command, type, or file.
-6. Record pre-existing modified and untracked files so they remain untouched.
+输出或维护“仓库证据图”：
 
-If the README contains no actionable goal, report the missing information and stop instead of inventing a project.
+| 关注点 | 实际位置 | 关键符号/配置 | 作用 | 证据状态 |
+|---|---|---|---|---|
+| 功能入口 | `path/file` | `Class.method` | 接收请求并调用服务 | 已读取/待确认 |
 
-## Phase 2: Build a requirements matrix
+如果 README 没有可执行目标，说明缺少的信息并停止，不得自行发明项目。
 
-Create one row per independently verifiable requirement:
+## 阶段二：建立需求矩阵
 
-| ID | Requirement | Source | Classification | Acceptance check | Status |
-|---|---|---|---|---|---|
-| R1 | Concrete observable behavior | README section or user request | explicit, inferred, or unknown | Command or inspection | pending |
+将每个可独立验证的结果拆成一行：
 
-Apply these rules:
+| ID | 可观察结果 | 来源 | 类型 | 优先级 | 验收方法 | 状态 |
+|---|---|---|---|---|---|---|
+| R1 | 给定输入时产生明确输出 | README 章节/用户请求 | 明确/推断/未知 | 必须/应该/可选 | 命令、测试或直接检查 | pending |
 
-- Quote or closely paraphrase the source; include its section or file location.
-- Split compound bullets into separate requirements.
-- Express requirements as observable outcomes, not implementation guesses.
-- Mark README/user statements as `explicit`.
-- Mark conclusions derived from code as `inferred`.
-- Mark missing decisions as `unknown`.
-- Include non-functional constraints, compatibility requirements, and forbidden changes.
+必须执行以下拆分：
 
-Resolve ambiguity conservatively:
+- 将复合句中的多个行为、约束和失败条件拆成独立条目。
+- 同时提取功能需求、非功能需求、兼容性、禁止事项、输入输出和验收命令。
+- 将 README 或用户明示说明的内容标为“明确”，将从代码得出的结论标为“推断”。
+- 将缺少必要决策的内容标为“未知”，不得伪装成事实。
+- 使用可观察的行为描述需求，不要把实现猜测写成需求。
 
-- Ask the user only when a choice changes a public interface, persistent data, security behavior, destructive action, cost, or the main product behavior.
-- Otherwise choose the smallest reversible interpretation and record it as an assumption.
-- Never silently weaken an explicit acceptance criterion.
+当未知项会改变公开接口、持久化数据、安全策略、主要产品行为、成本或导致破坏性操作时，请求用户决策。其他情况选择最小、可逆且与现有模式一致的方案，并明示记录假设。
 
-## Phase 3: Analyze the gap
+## 阶段三：建立实现模型
 
-For every requirement, determine:
+在编写计划前，必须回答以下问题。每个答案都引用实际文件和符号；无法确认时标为待查：
 
-1. What already exists.
-2. What is missing or incorrect.
-3. Which files and interfaces are involved.
-4. Which earlier requirement it depends on.
-5. Which existing test or command can validate it.
+1. **现有行为**：当前输入如何进入系统，经过哪些函数/模块，最后如何产生输出或副作用？
+2. **差距**：当前行为与每个需求 ID 相比，缺少哪个具体分支、数据、状态转换或错误处理？
+3. **调用链**：需要修改的定义被谁调用，它又调用了谁？同步、异步、回调、事件或队列边界在哪里？
+4. **接口契约**：参数、返回值、类型、状态、数据库模式、网络协议或文件格式有什么不变量？
+5. **数据流**：数据在哪里创建、校验、转换、传递、持久化和返回？
+6. **状态与时序**：初始状态、成功状态、失败状态、重试、超时、取消、并发和幂等性如何处理？
+7. **兼容面**：哪些调用者、配置、测试、文档和外部消费者可能受影响？
+8. **验证面**：现有哪些测试可复用，还需要哪些测试才能覆盖正常、边界和失败路径？
 
-Do not assume a README command works. Confirm the command and its configuration in the repository when possible.
+对跨模块流程，用简短文本图表示调用和数据方向，例如：
 
-## Phase 4: Create an atomic plan
+```text
+请求入口 -> 参数校验 -> 核心服务 -> 持久化/外部依赖 -> 结果映射 -> 响应
+                  \-> 校验失败 -> 稳定错误类型
+```
 
-Order steps by dependency: shared contracts and infrastructure first, core behavior second, integration third, documentation and broad validation last.
+## 阶段四：生成详细实施蓝图
 
-Define every step with this schema:
+先按需求生成“改动蓝图”，再拆成执行步骤。每个改动单元必须包含：
 
-| Field | Required content |
+| 字段 | 必须写出的内容 |
 |---|---|
-| Goal | One observable result |
-| Requirements | IDs satisfied by the step |
-| Files | Expected files to inspect or change |
-| Action | One small implementation operation |
-| Narrow verification | Fastest relevant check |
-| Completion condition | Exact evidence required |
+| 覆盖需求 | 对应的需求 ID |
+| 当前证据 | 现有行为所在文件、符号与关键分支 |
+| 改动位置 | 要修改或新增的确切文件和类/函数/配置项 |
+| 接口变化 | 签名、类型、字段、返回值、错误语义；无变化时明确写“无” |
+| 实现机制 | 要新增的条件、分支、算法、状态转换和调用顺序 |
+| 数据流变化 | 数据的来源、变换、去向及不变量 |
+| 异常与边界 | 空值、极值、非法输入、部分失败、超时、重试、并发等的明确行为 |
+| 兼容性 | 保持不变的行为，以及需同步的调用者、配置、数据或文档 |
+| 测试设计 | 测试文件/用例名、前置条件、具体输入、预期输出/副作用 |
+| 验收方法 | 可实际执行的精确命令或可重复检查 |
+| 风险与回退 | 可能的回归点、检测信号和最小回退单元 |
 
-Reject and split a step if it:
+对简单任务，仍要填写所有字段，但可使用简短句并将不适用项标为“不适用：原因”。不得删除字段来回避思考。
 
-- has multiple unrelated goals;
-- cannot be verified independently;
-- mixes broad refactoring with behavior changes;
-- requires editing files that have not been inspected;
-- uses vague completion language such as "works correctly".
+## 阶段五：拆分原子执行步骤
 
-## Phase 5: Execute one step
+按依赖顺序排列：公共契约和基础设施 -> 核心逻辑 -> 调用者与集成 -> 错误和边界路径 -> 文档 -> 广泛回归验证。
 
-For the current step only:
+每个步骤使用以下格式：
 
-1. Re-read the relevant requirement and source files.
-2. Confirm assumptions against code.
-3. Edit only the files needed for that step.
-4. Add or update a focused test when behavior changes.
-5. Inspect the diff for accidental or unrelated changes.
-6. Run the narrow verification specified in the plan.
-7. Mark the step complete only when the check passes or direct inspection conclusively verifies a non-executable artifact.
+### 步骤 N：使用可观察结果命名
 
-After a successful step, update affected requirement rows and select the next dependency-ready step.
+- **目标**：完成后用户或调用者能观察到什么。
+- **覆盖需求**：`R1, R2`。
+- **前置依赖**：必须先完成的步骤、环境或数据。
+- **修改文件与符号**：精确到文件及类、函数、方法、配置项或测试用例。
+- **实现细节**：按执行顺序写出新增/修改的判断、计算、数据变换、状态变化和调用。
+- **保持不变**：明确不应被改变的公开行为和兼容性约束。
+- **边界与失败路径**：逐项说明输入及预期行为。
+- **测试用例**：写出测试名、准备数据/模拟、具体输入、预期输出和应验证的副作用。
+- **本步验证**：最快且直接的精确命令。
+- **完成标准**：必须出现的结果、断言或输出，不得只写“测试通过”。
+- **回归观测点**：如果实现错误，最可能破坏什么，用哪个检查发现。
 
-## Handle failures deliberately
+必须拆分包含多个主要目标、无法独立验证、同时混入无关重构，或横跨多个高风险边界的步骤。
 
-When verification fails:
+## 阶段六：执行计划质量门禁
 
-1. Preserve the exact command, exit status, and relevant error output.
-2. Classify the failure as implementation, test expectation, environment, dependency, permission, or ambiguous requirement.
-3. Form one root-cause hypothesis supported by evidence.
-4. Make one targeted correction.
-5. Re-run the smallest reproducing check.
+在修改代码前逐项检查：
 
-After two failed corrections for the same symptom, stop patching. Re-read the relevant call path, configuration, and assumptions before attempting another change.
+- [ ] 每个必须需求都被至少一个步骤覆盖。
+- [ ] 每个步骤都引用已读取的实际文件和符号。
+- [ ] 每个行为改动都写出正常、边界和失败路径。
+- [ ] 接口、数据模式、配置和持久化影响都已说明。
+- [ ] 调用者、被调用者和数据流都已确认，或被标记为执行前待查项。
+- [ ] 测试设计包含具体输入和预期结果，不只是测试文件名。
+- [ ] 每个步骤都有精确验证命令和完成标准。
+- [ ] 步骤依赖无循环，并按可实施顺序排列。
+- [ ] 高风险改动已列出回归检查和最小回退单元。
+- [ ] 用户已有改动与本次修改边界已分开。
 
-Never hide a failing check, delete a legitimate test, relax assertions without requirement evidence, or label an unrun check as passing.
+任何一项未满足时，继续搜索或细化计划，不得开始实现。如果受环境限制无法确认，列出缺口、影响和最保守假设。
 
-## Phase 6: Verify progressively
+## 阶段七：逐步实现
 
-Run checks in this order when available:
+对当前步骤执行以下循环：
 
-1. Focused test for the changed behavior.
-2. Tests for the affected module or package.
-3. Static analysis, formatting, or type checks.
-4. Repository build.
-5. Broader regression suite recommended by the project.
-6. Final diff and repository-status inspection.
+1. 重新读取对应需求、改动蓝图和目标符号。
+2. 确认计划依据仍与当前代码一致；如有冲突，先更新实现模型和计划。
+3. 只修改当前步骤需要的文件与符号。
+4. 在行为变化时添加或更新针对性测试。
+5. 检查差异，移除偶然改动和不必要的复杂度。
+6. 执行本步的精确验证。
+7. 只在预期断言、输出和副作用都符合时标记完成。
+8. 更新需求矩阵，再选择下一个依赖已就绪的步骤。
 
-If a broad check is too expensive or unavailable, run the strongest practical subset and state exactly what remains unverified.
+## 有证据地处理失败
 
-## Apply the completion gate
+当验证失败时：
 
-Enter `DONE` only if all conditions hold:
+1. 保留精确命令、退出状态和关键错误输出。
+2. 将失败分为实现错误、测试预期错误、环境问题、依赖缺失、权限问题或需求歧义。
+3. 提出一个由证据支持的根因假设。
+4. 只作与该根因直接相关的修正。
+5. 重新执行最小可复现检查，通过后再扩大验证范围。
 
-- Every explicit requirement is `pass`, `not applicable` with justification, or `blocked` with evidence.
-- Every `pass` row cites an implementation location and an executed verification result.
-- No known failure is omitted.
-- The final diff contains no unrelated user files or accidental generated artifacts.
-- Documentation matches the implemented behavior and commands.
+同一症状连续修正两次仍失败时，停止猜测式修补，重新检查调用链、数据流、配置和前置假设。
 
-Do not equate code written, a successful build, or one passing test with task completion unless it covers every requirement.
+不得隐藏失败、删除合法测试、无依据放宽断言，或将未执行检查标记为通过。
 
-## Report the result
+## 阶段八：递进验收
 
-Lead with the outcome. Use this compact format:
+在可用时按以下顺序执行：
 
-### Outcome
+1. 针对当前改动的最小测试。
+2. 受影响模块或包的测试。
+3. 静态检查、格式检查和类型检查。
+4. 仓库构建或打包。
+5. README 或仓库推荐的广泛回归测试。
+6. 需求矩阵逐项验收。
+7. 最终差异和仓库状态检查。
 
-State whether the task is complete, partially complete, or blocked.
+当广泛检查成本过高或环境不支持时，执行最强的可行子集，并精确说明未执行项及其影响。
 
-### Requirement acceptance
+## 执行完成门禁
 
-| ID | Status | Implementation | Evidence |
+只有同时满足以下条件才进入 `DONE`：
+
+- 每个必须需求都为 `pass`、有理由的 `not applicable` 或有证据的 `blocked`。
+- 每个 `pass` 都同时引用实现位置和实际验证结果。
+- 正常、边界和失败路径均已按计划验证，或明确列为限制。
+- 所有已知失败均已报告。
+- 最终差异中没有无关用户文件或意外生成物。
+- 文档、接口、配置和实际行为一致。
+
+代码已写完、一次构建成功或一个测试通过，都不等于整个任务完成。
+
+## 输出结果
+
+当用户要求计划时，输出：
+
+1. **任务理解与范围**：目标、非目标、假设和未知项。
+2. **需求矩阵**：包含来源、优先级和验收方法。
+3. **仓库证据图**：关键文件、符号、调用者和职责。
+4. **调用链与数据流**：描述现状及预期变化。
+5. **详细改动蓝图**：完整填写所有必填字段。
+6. **原子执行步骤**：按依赖排序，包含具体测试用例和完成标准。
+7. **风险、决策点与未验证项**：只列对实施有实质影响的内容。
+
+当用户要求实现时，最终使用以下结构：
+
+### 结果
+
+说明任务已完成、部分完成或受阻。
+
+### 需求验收
+
+| ID | 状态 | 实现位置 | 验证证据 |
 |---|---|---|---|
-| R1 | pass, fail, or blocked | File/module | Executed command or direct check |
+| R1 | pass/fail/blocked | 文件与符号 | 已执行命令或直接检查 |
 
-### Verification
+### 验证结果
 
-List only commands actually executed and their results.
+只列出实际执行过的命令和结果。
 
-### Assumptions and limits
+### 假设与限制
 
-List only assumptions or unverified items that materially affect confidence or future work.
+只列出会实质影响结果或信心的假设、受阻项和未验证项。
