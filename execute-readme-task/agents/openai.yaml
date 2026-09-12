@@ -1,4 +1,4 @@
 interface:
   display_name: "README 综合任务执行器"
-  short_description: "深入读取 README 与代码，生成符号级详细计划并逐步验收"
-  default_prompt: "使用 $execute-readme-task 读取当前仓库的 README 和相关代码，先输出包含调用链、数据流、文件与符号级改动、边界情况和具体测试用例的详细计划，然后按步骤实现并提供验收证据。"
+  short_description: "用领域不变量、状态机、事务模型和组合测试规划并验收复杂任务"
+  default_prompt: "使用 $execute-readme-task 完整读取 README 和现有代码，先识别任务复杂度，建立契约、不变量、状态转换、跨实体级联、时间/版本和事务模型，再生成符号级计划、逐步实现并以组合测试验收。"
